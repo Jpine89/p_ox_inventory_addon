@@ -4,7 +4,7 @@ lua54 'yes'
  
 name 'p_ox_inventory_addon'
 description 'In-house Inventory Addon for ox_inventory'
-author 'PineappleHead'
+author 'ARPCity Dev Team'
 version '1.0.0'
 
 dependencies {

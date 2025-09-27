@@ -28,7 +28,7 @@ function ReturnFirstOrderedItem(itemName, metadata, strict)
         local tablematch = strict and lib.table.matches or lib.table.contains
         
         for _, slotData in pairs(inventory) do
-            if slotData and slotData.name == item.name and (not metadata or tablematch(slotData.metadata, metadata)) then
+            if slotData and slotData.name == item.name and slotData.metadata.ammo > 0 and (not metadata or tablematch(slotData.metadata, metadata)) then
                 table.insert(matchedItems, slotData)
             end
         end
@@ -38,7 +38,7 @@ function ReturnFirstOrderedItem(itemName, metadata, strict)
         table.sort(matchedItems, function(a, b)
             return (a.metadata.ammo or 0) > (b.metadata.ammo or 0)
         end)
-
+        print('Returning slot:', matchedItems[1].metadata.ammo)
         return matchedItems[1].slot
     end
 end
@@ -108,7 +108,7 @@ local function packMagazine(data)
 
         Citizen.CreateThread(function()
             while isReloading do
-                local sleep = 2000
+                local sleep = 500
                 local animDict = "cover@weapon@reloads@pistol@pistol"
                 local animName = "reload_low_left_long"
                 if not isReloading then break end -- Double-check if reloading was canceled
@@ -165,6 +165,7 @@ local function useMagazine(data, context)
             end
             SetAmmoInClip(playerPed, weapon.hash, 0)
             AddAmmoToPed(playerPed, weapon.hash, roundsToSet)
+            Wait(100)
             MakePedReload(playerPed)
 
             weapon.metadata.ammo = resp.metadata.ammo
@@ -214,9 +215,11 @@ lib.addKeybind({
 
                     if slotId then
                         exports.ox_inventory:useSlot(slotId)
+                    else
+                        lib.notify({ id = 'no_magazine', type = 'error', description = 'no_magazine_found' })
                     end
                 else
-                    lib.notify({ id = 'no_durability', type = 'error', description = locale('no_durability', currentWeapon.label) })
+                    lib.notify({ id = 'no_durability', type = 'error', description = 'no_durability' })
                 end
             end
         end
