@@ -1,0 +1,229 @@
+local currentMag = {
+        prop = 0,
+        item = nil,
+        slot = -1,
+        metadata = {},
+}
+
+local function assertMetadata(metadata)
+    if metadata and type(metadata) ~= 'table' then
+        metadata = metadata and { type = metadata or nil }
+    end
+
+    return metadata
+end
+
+function ReturnFirstOrderedItem(itemName, metadata, strict)
+    local inventory = exports.ox_inventory:GetPlayerItems()
+    
+    local item = exports.ox_inventory:Items(itemName)
+    if item then
+        return exports.ox_inventory:GetSlotIdWithItem(itemName, {}, strict)
+    else
+        item = exports.ox_inventory:Items('Magazine')
+        if not item then return end
+
+        local matchedItems = {}
+        metadata = assertMetadata(metadata)
+        local tablematch = strict and lib.table.matches or lib.table.contains
+        
+        for _, slotData in pairs(inventory) do
+            if slotData and slotData.name == item.name and (not metadata or tablematch(slotData.metadata, metadata)) then
+                table.insert(matchedItems, slotData)
+            end
+        end
+        
+        if #matchedItems == 0 then return end
+
+        table.sort(matchedItems, function(a, b)
+            return (a.metadata.ammo or 0) > (b.metadata.ammo or 0)
+        end)
+
+        return matchedItems[1].slot
+    end
+end
+exports('ReturnFirstOrderedItem', ReturnFirstOrderedItem)
+
+function StartDisablePunchLoop()
+    CreateThread(function()
+        while currentMag.prop ~= 0 do
+            DisableControlAction(0, 140, true) -- Hack to prevent punching while reloading
+            Wait(0)
+        end
+    end)
+end
+
+local function attachMagazine(data, context)
+    currentMag = {
+        prop = 0,
+        item = context,
+        slot = context.slot,
+        metadata = context.metadata or {},
+    }
+    -- Model = 'w_pi_combatpistol_mag1',
+    -- BoneID = 18905,
+    -- Offset = vector3(0.109000, 0.086000, -0.023000),
+    -- Rot = vector3(63.749866, 180.301071, -184.201492),
+    local modelHash = joaat(context.metadata.model) or joaat('w_pi_combatpistol_mag1')
+    local boneIndex = 18905  -- Bone index for right hand (57005) (Use 18905 for left hand)
+
+    RequestModel(modelHash)
+    while not HasModelLoaded(modelHash) do
+        Wait(10)
+    end
+
+    currentMag.prop = CreateObject(modelHash, 0.0, 0.0, 0.0, true, true, false)
+    local pos = { x = 0.109000, y = 0.086, z = -0.023 }
+    local rot = { x = 63.749866, y = 180.301071, z = -184.201492 }
+
+    AttachEntityToEntity(
+        currentMag.prop, cache.ped, GetPedBoneIndex(cache.ped, boneIndex),
+        pos.x, pos.y, pos.z,
+        rot.x, rot.y, rot.z,
+        true, true, false, true, 1, true)
+
+    SetModelAsNoLongerNeeded(modelHash)
+    StartDisablePunchLoop()
+    TriggerEvent('ox_inventory:itemNotify', { context, 'ui_equipped' })
+end
+
+local function detachMagazine()
+    if currentMag.prop ~= 0 and DoesEntityExist(currentMag.prop) then
+        DetachEntity(currentMag.prop, true, true)
+        DeleteEntity(currentMag.prop)
+        currentMag.prop = 0
+        TriggerEvent('ox_inventory:itemNotify', { currentMag.item, 'ui_holstered' })
+    end
+end
+
+local function packMagazine(data)
+    local isReloading = false
+	exports.ox_inventory:useItem({
+        name = currentMag.item.name,
+        slot = currentMag.item.slot,
+        metadata = currentMag.item.metadata,
+    }, function(resp)
+        if not resp then return end
+        isReloading = true
+
+        Citizen.CreateThread(function()
+            while isReloading do
+                local sleep = 2000
+                local animDict = "cover@weapon@reloads@pistol@pistol"
+                local animName = "reload_low_left_long"
+                if not isReloading then break end -- Double-check if reloading was canceled
+
+                if lib.progressCircle({
+                    duration = sleep,
+                    position = 'bottom',
+                    label = 'pack_magazine',
+                    useWhileDead = false,
+                    canCancel = true,
+                    disable = {
+                        move = true,
+                        car = true,
+                        combat = true,
+                        mouse = false,
+                    },
+                    anim = {
+                        clip = animName,
+                        dict= animDict,
+                        flag = 16
+                    }
+                })
+                then
+                    resp.metadata.ammo = resp.metadata.ammo + 1
+                    resp.metadata.durability = math.max(1, math.floor((resp.metadata.ammo / resp.metadata.magSize) * 100))
+                else
+                    isReloading = false
+                end
+
+                if resp.metadata.ammo >= resp.metadata.magSize then
+                    print('Magazine is full or no more ammo to load.')
+                    break
+                end
+            end	
+            
+            lib.callback.await('p_ox_inventory_addon:updateMagazine', false, 'loadMagazine', resp.metadata.ammo, resp.slot, nil)
+            isReloading = false
+        end)
+    end)
+end
+
+local function useMagazine(data, context)
+    local playerPed = cache.ped
+    local weapon = exports.ox_inventory:getCurrentWeapon()
+
+    if weapon then
+        exports.ox_inventory:useItem(data, function(resp)
+            if (not resp) then return end
+            local currentAmmo = GetAmmoInClip(playerPed, weapon.hash)
+            local clipSize = GetMaxAmmoInClip(playerPed, weapon.hash, true)
+            local roundsToSet = resp.metadata.ammo or 0
+            if clipSize and roundsToSet > clipSize then
+                roundsToSet = clipSize
+            end
+            SetAmmoInClip(playerPed, weapon.hash, 0)
+            AddAmmoToPed(playerPed, weapon.hash, roundsToSet)
+            MakePedReload(playerPed)
+
+            weapon.metadata.ammo = resp.metadata.ammo
+            weapon.metadata.hasMagazine = true
+            
+            lib.callback.await(
+                'p_ox_inventory_addon:updateMagazine',
+                false,
+                'load',
+                resp.metadata.ammo,
+                context.slot,
+                weapon.metadata and weapon.metadata.specialAmmo or nil)
+        end)
+    else
+        if data.magazine and DoesEntityExist(currentMag.prop) then
+            detachMagazine()
+            return
+        end
+		if data.magazine then
+            attachMagazine(data, context)
+            return
+		end
+    end
+end
+exports('useMagazine', useMagazine)
+
+AddEventHandler('ox_inventory:currentWeapon', function(currentWeapon)
+    if currentWeapon and currentWeapon.name then
+        detachMagazine()
+    end
+end)
+
+lib.addKeybind({
+    name = 'reloadweapon_addon',
+    description = 'reload_weapon_addon',
+    defaultKey = 'r',
+    onPressed = function(self)
+        if currentMag.prop ~= 0 and DoesEntityExist(currentMag.prop) then
+            packMagazine(currentMag)
+        else
+            local currentWeapon = exports.ox_inventory:getCurrentWeapon(true)
+            if not currentWeapon then return end
+
+            if currentWeapon.ammo then
+                if currentWeapon.metadata.durability > 0 then
+                    local slotId = ReturnFirstOrderedItem(currentWeapon.ammo, { magType = currentWeapon.metadata.magType }, false)
+
+                    if slotId then
+                        exports.ox_inventory:useSlot(slotId)
+                    end
+                else
+                    lib.notify({ id = 'no_durability', type = 'error', description = locale('no_durability', currentWeapon.label) })
+                end
+            end
+        end
+    end
+})
+
+AddEventHandler('onResourceStop', function(resource)
+    detachMagazine()
+end)
+
