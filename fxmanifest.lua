@@ -1,11 +1,11 @@
 fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
- 
+
 name 'p_ox_inventory_addon'
 description 'Ox_Inventory Addon'
 author 'ARPCity Dev Team'
-version '1.1.0'
+version '1.2.0'
 
 dependencies {
     'ox_lib',
@@ -15,7 +15,7 @@ dependencies {
 
 shared_scripts {
     '@ox_lib/init.lua',
-    'magazine/config/*.lua'
+    'magazine/config.lua'
 }
 
 client_scripts {

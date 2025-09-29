@@ -17,7 +17,7 @@ local function updateMagazine(source, action, value, slot, specialAmmo)
             ammo     = currentWepAmmo,
             durability = math.max(1, math.floor((currentWepAmmo / magazine.metadata.magSize) * 100))
         }
-        
+                                                         
         local itemKey = magazine.name
         local magType = magazine and magazine.metadata and magazine.metadata.magType
         local metadata = magType and { magType = magType } or nil
@@ -47,4 +47,17 @@ lib.callback.register('p_ox_inventory_addon:updateMagazine', updateMagazine)
 
 RegisterNetEvent('p_ox_inventory_addon:updateMagazine', function(action, value, slot, specialAmmo)
 	updateMagazine(source, action, value, slot, specialAmmo)
+end)
+
+
+exports.ox_inventory:registerHook('swapItems', function(payload)
+    print('Swapping items:', json.encode(payload or {}))
+end)
+
+exports.ox_inventory:registerHook('createItem', function(payload)
+    if payload.item.magazine then
+        payload.metadata.id = tostring(math.random(100000,999999)) .. tostring(GetGameTimer())
+    end
+
+    return payload.metadata
 end)

@@ -93,8 +93,13 @@ local function detachMagazine()
     if currentMag.prop ~= 0 and DoesEntityExist(currentMag.prop) then
         DetachEntity(currentMag.prop, true, true)
         DeleteEntity(currentMag.prop)
-        currentMag.prop = 0
         TriggerEvent('ox_inventory:itemNotify', { currentMag.item, 'ui_holstered' })
+        currentMag = {
+            prop = 0,
+            item = nil,
+            slot = nil,
+            metadata = {},
+        }
     end
 end
 
@@ -164,7 +169,7 @@ local function useMagazine(data, context)
             local success = lib.callback.await('p_ox_inventory_addon:updateMagazine', false, 'load', resp.metadata.ammo, context.slot, weapon.metadata or nil)
 
             if not success then
-                print('Failed to load magazine')
+                lib.notify({ id = 'no_magazine', type = 'error', description = 'Failed to reload' })
                 isReloading = false
                 return
             end
@@ -181,16 +186,21 @@ local function useMagazine(data, context)
             weapon.metadata.hasMagazine = true
             isReloading = false
         end)
-    else
-        if data.magazine and DoesEntityExist(currentMag.prop) then
-            detachMagazine()
-            return
-        end
-		if data.magazine then
+    elseif data.magazine then
+        local magId = context.metadata and context.metadata.id
+        local currentId = currentMag.metadata and currentMag.metadata.id
+        if magId and currentId and magId == currentId then
+            if currentMag.prop ~= 0 and DoesEntityExist(currentMag.prop) then
+                detachMagazine()
+            end
+        else
+            if currentMag.prop ~= 0 and DoesEntityExist(currentMag.prop) then
+                detachMagazine()
+            end
             attachMagazine(data, context)
-            return
-		end
+        end
     end
+
 end
 exports('useMagazine', useMagazine)
 
