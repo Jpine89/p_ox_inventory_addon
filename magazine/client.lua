@@ -1,9 +1,11 @@
+local Config = require 'config'
 local currentMag = {
         prop = 0,
         item = nil,
         slot = -1,
         metadata = {},
 }
+local isReloading = false
 
 local function assertMetadata(metadata)
     if metadata and type(metadata) ~= 'table' then
@@ -38,7 +40,7 @@ function ReturnFirstOrderedItem(itemName, metadata, strict)
         table.sort(matchedItems, function(a, b)
             return (a.metadata.ammo or 0) > (b.metadata.ammo or 0)
         end)
-        print('Returning slot:', matchedItems[1].metadata.ammo)
+
         return matchedItems[1].slot
     end
 end
@@ -97,7 +99,6 @@ local function detachMagazine()
 end
 
 local function packMagazine(data)
-    local isReloading = false
 	exports.ox_inventory:useItem({
         name = currentMag.item.name,
         slot = currentMag.item.slot,
@@ -108,13 +109,12 @@ local function packMagazine(data)
 
         Citizen.CreateThread(function()
             while isReloading do
-                local sleep = 500
                 local animDict = "cover@weapon@reloads@pistol@pistol"
                 local animName = "reload_low_left_long"
                 if not isReloading then break end -- Double-check if reloading was canceled
 
                 if lib.progressCircle({
-                    duration = sleep,
+                    duration = Config.MagazineReloadTime,
                     position = 'bottom',
                     label = 'pack_magazine',
                     useWhileDead = false,
@@ -155,29 +155,31 @@ local function useMagazine(data, context)
     local weapon = exports.ox_inventory:getCurrentWeapon()
 
     if weapon then
+        if weapon.ammo ~= context.metadata.magType then lib.notify({ id = 'no_magazine', type = 'error', description = 'no_magazine_found' }) return end
+        if context.metadata.ammo < 1 then lib.notify({ id = 'no_magazine', type = 'error', description = 'no_magazine_found' }) return end
+        if isReloading then return end
+        isReloading = true
         exports.ox_inventory:useItem(data, function(resp)
             if (not resp) then return end
-            local currentAmmo = GetAmmoInClip(playerPed, weapon.hash)
+            local success = lib.callback.await('p_ox_inventory_addon:updateMagazine', false, 'load', resp.metadata.ammo, context.slot, weapon.metadata or nil)
+
+            if not success then
+                print('Failed to load magazine')
+                isReloading = false
+                return
+            end
             local clipSize = GetMaxAmmoInClip(playerPed, weapon.hash, true)
             local roundsToSet = resp.metadata.ammo or 0
             if clipSize and roundsToSet > clipSize then
                 roundsToSet = clipSize
             end
             SetAmmoInClip(playerPed, weapon.hash, 0)
-            AddAmmoToPed(playerPed, weapon.hash, roundsToSet)
-            Wait(100)
+            SetPedAmmo(playerPed, weapon.hash, roundsToSet)
             MakePedReload(playerPed)
 
             weapon.metadata.ammo = resp.metadata.ammo
             weapon.metadata.hasMagazine = true
-            
-            lib.callback.await(
-                'p_ox_inventory_addon:updateMagazine',
-                false,
-                'load',
-                resp.metadata.ammo,
-                context.slot,
-                weapon.metadata and weapon.metadata.specialAmmo or nil)
+            isReloading = false
         end)
     else
         if data.magazine and DoesEntityExist(currentMag.prop) then

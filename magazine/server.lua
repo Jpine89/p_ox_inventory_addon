@@ -19,11 +19,15 @@ local function updateMagazine(source, action, value, slot, specialAmmo)
         }
         
         local itemKey = magazine.name
-        if not exports.ox_inventory:RemoveItem(source, itemKey, value, specialAmmo, slot, true) then return end
+        local magType = magazine and magazine.metadata and magazine.metadata.magType
+        local metadata = magType and { magType = magType } or nil
+
+        if not exports.ox_inventory:RemoveItem(source, itemKey, 1, metadata, slot, false, false) then return end
 
         if currentWepAmmo > 0 or weapon.metadata.hasMagazine then
             exports.ox_inventory:AddItem(source, itemKey, 1, newMagazineMetadata)
         end
+
         weapon.metadata.ammo = value
         weapon.metadata.hasMagazine = true
         weapon.metadata.magazineType = ammo

@@ -3,9 +3,9 @@ game 'gta5'
 lua54 'yes'
  
 name 'p_ox_inventory_addon'
-description 'In-house Inventory Addon for ox_inventory'
+description 'Ox_Inventory Addon'
 author 'ARPCity Dev Team'
-version '1.0.0'
+version '1.1.0'
 
 dependencies {
     'ox_lib',
