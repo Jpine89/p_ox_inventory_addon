@@ -25,12 +25,12 @@ return {
 			name = 'magazine',
 			price = 50,
 			metadata = {
-				label = '9mm Magazine',
-				model = 'w_pi_combatpistol_mag1',
-				magType  = 'magazine-9',
-				ammoType = 'ammo-9',
-				magSize  = 15,
-				ammo     = 0
+				label 		= '9mm Magazine',
+				model 		= 'w_pi_combatpistol_mag1',
+				magType 	= 'magazine-9',
+				ammoType 	= 'ammo-9',
+				magSize 	= 12,
+				ammo 		= 0
 			}
 		},
 	}, locations = {
