@@ -1,4 +1,4 @@
-local Config = require 'config'
+local Config = require 'magazine.config'
 local currentMag = {
         prop = 0,
         item = nil,
