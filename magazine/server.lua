@@ -35,6 +35,7 @@ local function updateMagazine(source, action, value, slot, specialAmmo)
         exports.ox_inventory:SetMetadata(source, weapon.slot, weapon.metadata)
     elseif action == 'loadMagazine' then
         local magazine = exports.ox_inventory:GetSlot(source, slot)
+        if not exports.ox_inventory:RemoveItem(source, magazine.metadata.ammoType, value) then return end
         magazine.metadata.ammo = value
         magazine.metadata.durability = math.max(1, math.floor((value / magazine.metadata.magSize) * 100))
         exports.ox_inventory:SetMetadata(source, slot, magazine.metadata)
