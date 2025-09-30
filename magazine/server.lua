@@ -51,7 +51,18 @@ end)
 
 
 exports.ox_inventory:registerHook('swapItems', function(payload)
-    print('Swapping items:', json.encode(payload or {}))
+    if type(payload.toSlot) == 'table' and payload.toSlot.name == 'magazine' then
+        if type(payload.fromSlot) == 'table' and payload.fromSlot.name == payload.toSlot.metadata.ammoType then
+            CreateThread(function()
+                payload.toSlot.metadata.ammo = payload.toSlot.metadata.ammo + 1
+                payload.toSlot.metadata.durability = math.max(1, math.floor((payload.toSlot.metadata.ammo / payload.toSlot.metadata.magSize) * 100))
+                if not exports.ox_inventory:RemoveItem(payload.source, payload.fromSlot.name, 1) then return end
+                exports.ox_inventory:SetMetadata(payload.source, payload.toSlot.slot, payload.toSlot.metadata)
+             end)
+            return false
+        end
+    end
+    return true
 end)
 
 exports.ox_inventory:registerHook('createItem', function(payload)
