@@ -66,7 +66,7 @@ local function attachMagazine(data, context)
     -- BoneID = 18905,
     -- Offset = vector3(0.109000, 0.086000, -0.023000),
     -- Rot = vector3(63.749866, 180.301071, -184.201492),
-    local modelHash = joaat(context.metadata.model) or joaat('w_pi_combatpistol_mag1')
+    local modelHash = joaat(type(context.metadata.model) == 'string' and context.metadata.model or 'w_pi_combatpistol_mag1')
     local boneIndex = 18905  -- Bone index for right hand (57005) (Use 18905 for left hand)
 
     RequestModel(modelHash)
