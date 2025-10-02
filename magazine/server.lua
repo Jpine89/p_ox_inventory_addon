@@ -15,6 +15,7 @@ local function updateMagazine(source, action, value, slot, specialAmmo)
             magSize  = magazine.metadata.magSize,
             model    = magazine.metadata.model,
             ammo     = currentWepAmmo,
+            image    = magazine.metadata.image,
             durability = math.max(1, math.floor((currentWepAmmo / magazine.metadata.magSize) * 100))
         }
                                                          
@@ -49,7 +50,6 @@ lib.callback.register('p_ox_inventory_addon:updateMagazine', updateMagazine)
 RegisterNetEvent('p_ox_inventory_addon:updateMagazine', function(action, value, slot, specialAmmo)
 	updateMagazine(source, action, value, slot, specialAmmo)
 end)
-
 
 exports.ox_inventory:registerHook('swapItems', function(payload)
     if type(payload.toSlot) == 'table' and payload.toSlot.name == 'magazine' then

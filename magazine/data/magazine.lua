@@ -31,6 +31,16 @@ return {
 				ammoType 	= 'ammo-9',
 				magSize 	= 12,
 				ammo 		= 0
+			},
+			name = 'magazine',
+			price = 50,
+			metadata = {
+				label 		= 'Gevärsmagasin 2',
+				model 		= 'w_pi_combatpistol_mag1',
+				magType 	= 'magazine-rifle2',
+				ammoType 	= 'ammo-9',
+				magSize 	= 30,
+				ammo 		= 0
 			}
 		},
 	}, locations = {
