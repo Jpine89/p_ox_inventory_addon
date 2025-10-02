@@ -30,7 +30,7 @@ function ReturnFirstOrderedItem(itemName, metadata, strict)
         local tablematch = strict and lib.table.matches or lib.table.contains
         
         for _, slotData in pairs(inventory) do
-            if slotData and slotData.name == item.name and slotData.metadata.ammo > 0 and (not metadata or tablematch(slotData.metadata, metadata)) then
+            if slotData and slotData.name == item.name and slotData.metadata.ammo > 0 and slotData.metadata.magType == itemName and (not metadata or tablematch(slotData.metadata, metadata)) then
                 table.insert(matchedItems, slotData)
             end
         end
@@ -147,8 +147,7 @@ local function packMagazine(data)
                     print('Magazine is full or no more ammo to load.')
                     break
                 end
-            end	
-            
+            end
             lib.callback.await('p_ox_inventory_addon:updateMagazine', false, 'loadMagazine', resp.metadata.ammo, resp.slot, nil)
             isReloading = false
         end)
@@ -216,24 +215,31 @@ lib.addKeybind({
     defaultKey = 'r',
     onPressed = function(self)
         if currentMag.prop ~= 0 and DoesEntityExist(currentMag.prop) then
-            packMagazine(currentMag)
-        else
-            local currentWeapon = exports.ox_inventory:getCurrentWeapon(true)
-            if not currentWeapon then return end
-
-            if currentWeapon.ammo then
-                if currentWeapon.metadata.durability > 0 then
-                    local slotId = ReturnFirstOrderedItem(currentWeapon.ammo, { magType = currentWeapon.metadata.magType }, false)
-
-                    if slotId then
-                        exports.ox_inventory:useSlot(slotId)
-                    else
-                        lib.notify({ id = 'no_magazine', type = 'error', description = 'no_magazine_found' })
-                    end
-                else
-                    lib.notify({ id = 'no_durability', type = 'error', description = 'no_durability' })
-                end
+            local slotId = exports.ox_inventory:GetSlotIdWithItem(currentMag.metadata.ammoType, {}, false)
+            if slotId then
+                packMagazine(currentMag)
+            else
+                lib.notify({ id = 'no_ammo', type = 'error', description = 'no_ammo_found' })
             end
+            
+            return
+        end
+
+        local currentWeapon = exports.ox_inventory:getCurrentWeapon(true)
+        if not currentWeapon then return end
+        if currentWeapon.ammo then
+            if currentWeapon.metadata.durability > 0 then
+                local slotId = ReturnFirstOrderedItem(currentWeapon.ammo, { magType = currentWeapon.metadata.magType }, false)
+
+                if slotId then
+                    exports.ox_inventory:useSlot(slotId)
+                else
+                    lib.notify({ id = 'no_magazine', type = 'error', description = 'no_magazine_found' })
+                end
+            else
+                lib.notify({ id = 'no_durability', type = 'error', description = 'no_durability' })
+            end
+            return
         end
     end
 })
