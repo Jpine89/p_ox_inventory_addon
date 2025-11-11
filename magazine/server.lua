@@ -36,9 +36,13 @@ local function updateMagazine(source, action, value, slot, specialAmmo)
         exports.ox_inventory:SetMetadata(source, weapon.slot, weapon.metadata)
     elseif action == 'loadMagazine' then
         local magazine = exports.ox_inventory:GetSlot(source, slot)
+        --Server Check to validate that client didn't add more ammo than magSize
+        local magCheck = magazine.metadata.ammo + value
+        if magCheck > magazine.metadata.magSize then return false end
+
         if not exports.ox_inventory:RemoveItem(source, magazine.metadata.ammoType, value) then return end
-        magazine.metadata.ammo = value
-        magazine.metadata.durability = math.max(1, math.floor((value / magazine.metadata.magSize) * 100))
+        magazine.metadata.ammo = magCheck
+        magazine.metadata.durability = math.max(1, math.floor((magCheck / magazine.metadata.magSize) * 100))
         exports.ox_inventory:SetMetadata(source, slot, magazine.metadata)
     end
 
@@ -55,8 +59,11 @@ exports.ox_inventory:registerHook('swapItems', function(payload)
     if type(payload.toSlot) == 'table' and payload.toSlot.name == 'magazine' then
         if type(payload.fromSlot) == 'table' and payload.fromSlot.name == payload.toSlot.metadata.ammoType then
             CreateThread(function()
-                payload.toSlot.metadata.ammo = payload.toSlot.metadata.ammo + 1
-                payload.toSlot.metadata.durability = math.max(1, math.floor((payload.toSlot.metadata.ammo / payload.toSlot.metadata.magSize) * 100))
+                --New Issue found here.. Notes added. When manual load, we can add more bullets to mag than allowed.
+                local magCheck = payload.toSlot.metadata.ammo + 1
+                if magCheck > payload.toSlot.metadata.magSize then return false end
+                payload.toSlot.metadata.ammo = magCheck
+                payload.toSlot.metadata.durability = math.max(1, math.floor((magCheck / payload.toSlot.metadata.magSize) * 100))
                 if not exports.ox_inventory:RemoveItem(payload.source, payload.fromSlot.name, 1) then return end
                 exports.ox_inventory:SetMetadata(payload.source, payload.toSlot.slot, payload.toSlot.metadata)
              end)

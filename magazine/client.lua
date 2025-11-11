@@ -111,12 +111,18 @@ local function packMagazine(data)
     }, function(resp)
         if not resp then return end
         isReloading = true
-
+        local bulletsAddedToMag = 0
         Citizen.CreateThread(function()
             while isReloading do
                 local animDict = "cover@weapon@reloads@pistol@pistol"
                 local animName = "reload_low_left_long"
-                if not isReloading then break end -- Double-check if reloading was canceled
+                if not isReloading then break end
+
+                if resp.metadata.ammo >= resp.metadata.magSize then
+                    --print('Magazine is full or no more ammo to load.')
+                    isReloading = false
+                    break
+                end
 
                 if lib.progressCircle({
                     duration = Config.MagazineReloadTime,
@@ -137,18 +143,16 @@ local function packMagazine(data)
                     }
                 })
                 then
-                    resp.metadata.ammo = resp.metadata.ammo + 1
-                    resp.metadata.durability = math.max(1, math.floor((resp.metadata.ammo / resp.metadata.magSize) * 100))
+                    bulletsAddedToMag = bulletsAddedToMag + 1
+                    resp.metadata.durability = math.max(1, math.floor((resp.metadata.ammo + bulletsAddedToMag) / resp.metadata.magSize * 100))
                 else
                     isReloading = false
                 end
-
-                if resp.metadata.ammo >= resp.metadata.magSize then
-                    print('Magazine is full or no more ammo to load.')
-                    break
-                end
             end
-            lib.callback.await('p_ox_inventory_addon:updateMagazine', false, 'loadMagazine', resp.metadata.ammo, resp.slot, nil)
+            local success = lib.callback.await('p_ox_inventory_addon:updateMagazine', 2000, 'loadMagazine', bulletsAddedToMag, resp.slot, nil)
+            if not success then
+                lib.notify({ id = 'pack_failed', type = 'error', description = 'Failed to pack magazine - server timeout' })
+            end
             isReloading = false
         end)
     end)
@@ -158,17 +162,28 @@ local function useMagazine(data, context)
     local playerPed = cache.ped
     local weapon = exports.ox_inventory:getCurrentWeapon()
 
+    -- Why we can't disarm the weapon, when using the magazine.
+    -- This function gets called from ox_inventory useSlot function.
+    -- When useSlot gets called, it looks at the item being used and checks for exports. 
+    -- In this case the magazine item has an export and it calls here. 
+    -- Problem is when you reload a gun, it calls the item in useSlot..
+    -- If you see where I'm going.. basically in both wanting to pack a magazine, and reloading a gun.
+    -- Both actions in useSlot reference here. Thus we have no real way of determining, if you are
+    -- reloading your weapon.. or wanting to equip the magazine.
+    -- Thus we treat all Magazine actions when weapon is equipped as reloading the gun.
+
+    -- May look into maybe.. finding a solution to this but it's a complex one already.
     if weapon then
         if weapon.ammo ~= context.metadata.magType then lib.notify({ id = 'no_magazine', type = 'error', description = 'no_magazine_found' }) return end
         if context.metadata.ammo < 1 then lib.notify({ id = 'no_magazine', type = 'error', description = 'no_magazine_found' }) return end
         if isReloading then return end
         isReloading = true
         exports.ox_inventory:useItem(data, function(resp)
-            if (not resp) then return end
-            local success = lib.callback.await('p_ox_inventory_addon:updateMagazine', false, 'load', resp.metadata.ammo, context.slot, weapon.metadata or nil)
+            if (not resp) then isReloading = false return end
+            local success = lib.callback.await('p_ox_inventory_addon:updateMagazine', 2000, 'load', resp.metadata.ammo, context.slot, weapon.metadata or nil)
 
             if not success then
-                lib.notify({ id = 'no_magazine', type = 'error', description = 'Failed to reload' })
+                lib.notify({ id = 'no_magazine', type = 'error', description = 'Failed to reload - server timeout' })
                 isReloading = false
                 return
             end
