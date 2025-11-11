@@ -55,6 +55,31 @@ RegisterNetEvent('p_ox_inventory_addon:updateMagazine', function(action, value, 
 	updateMagazine(source, action, value, slot, specialAmmo)
 end)
 
+RegisterNetEvent('p_ox_inventory_addon:updateMagazineLabel', function(slot, removeLabel)
+    local src = source
+    local item = exports.ox_inventory:GetSlot(src, slot)
+    if item and item.metadata then
+        local newMetadata = item.metadata
+        
+        if removeLabel then
+            -- Remove lightning bolt when detaching
+            if newMetadata.label then
+                newMetadata.label = newMetadata.label:gsub('⚡ ', '')
+            end
+            newMetadata.description = nil
+        else
+            -- Add lightning bolt when attaching
+            if newMetadata.label then
+                newMetadata.label = newMetadata.label:gsub('⚡ ', '') -- Clean first
+            end
+            newMetadata.description = '⚡ Currently Equipped'
+            newMetadata.label = '⚡ ' .. (newMetadata.label or 'Magazine')
+        end
+        
+        exports.ox_inventory:SetMetadata(src, slot, newMetadata)
+    end
+end)
+
 exports.ox_inventory:registerHook('swapItems', function(payload)
     if type(payload.toSlot) == 'table' and payload.toSlot.name == 'magazine' then
         if type(payload.fromSlot) == 'table' and payload.fromSlot.name == payload.toSlot.metadata.ammoType then
@@ -80,3 +105,4 @@ exports.ox_inventory:registerHook('createItem', function(payload)
 
     return payload.metadata
 end)
+

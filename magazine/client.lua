@@ -55,12 +55,35 @@ function StartDisablePunchLoop()
     end)
 end
 
+local function detachMagazine()
+    if currentMag.prop ~= 0 and DoesEntityExist(currentMag.prop) then
+        DetachEntity(currentMag.prop, true, true)
+        DeleteEntity(currentMag.prop)
+        TriggerEvent('ox_inventory:itemNotify', { currentMag.item, 'ui_holstered' })
+
+        TriggerServerEvent('p_ox_inventory_addon:updateMagazineLabel', currentMag.slot, true)
+
+        currentMag = {
+            prop = 0,
+            item = nil,
+            slot = nil,
+            metadata = {},
+        }
+    end
+end
+
 local function attachMagazine(data, context)
+    local weapon = exports.ox_inventory:getCurrentWeapon()
+    if weapon then TriggerEvent('ox_inventory:disarm', false) end
+    if currentMag.prop ~= 0 and DoesEntityExist(currentMag.prop) then
+        detachMagazine()
+    end
+
     currentMag = {
         prop = 0,
         item = context,
         slot = context.slot,
-        metadata = context.metadata or {},
+        metadata = lib.table.clone(context.metadata or {}), -- Deep copy!
     }
     -- Model = 'w_pi_combatpistol_mag1',
     -- BoneID = 18905,
@@ -84,23 +107,11 @@ local function attachMagazine(data, context)
         rot.x, rot.y, rot.z,
         true, true, false, true, 1, true)
 
+    TriggerServerEvent('p_ox_inventory_addon:updateMagazineLabel', context.slot, false)
+    
     SetModelAsNoLongerNeeded(modelHash)
     StartDisablePunchLoop()
     TriggerEvent('ox_inventory:itemNotify', { context, 'ui_equipped' })
-end
-
-local function detachMagazine()
-    if currentMag.prop ~= 0 and DoesEntityExist(currentMag.prop) then
-        DetachEntity(currentMag.prop, true, true)
-        DeleteEntity(currentMag.prop)
-        TriggerEvent('ox_inventory:itemNotify', { currentMag.item, 'ui_holstered' })
-        currentMag = {
-            prop = 0,
-            item = nil,
-            slot = nil,
-            metadata = {},
-        }
-    end
 end
 
 local function packMagazine(data)
@@ -157,6 +168,17 @@ local function packMagazine(data)
         end)
     end)
 end
+
+local function equipMagazine(context)
+    print('Equipping Magazine')
+    attachMagazine(nil, context)
+end
+exports('equipMagazine', equipMagazine)
+
+local function unequipMagazine()
+    detachMagazine()
+end
+exports('unequipMagazine', unequipMagazine)
 
 local function useMagazine(data, context)
     local playerPed = cache.ped
