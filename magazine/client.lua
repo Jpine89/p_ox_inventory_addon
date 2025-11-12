@@ -160,9 +160,10 @@ local function packMagazine(data)
                     isReloading = false
                 end
             end
-            local success = lib.callback.await('p_ox_inventory_addon:updateMagazine', false, 'loadMagazine', bulletsAddedToMag, resp.slot, nil)
-            if not success then
-                lib.notify({ id = 'pack_failed', type = 'error', description = 'Failed to pack magazine - server timeout' })
+            local result = lib.callback.await('p_ox_inventory_addon:updateMagazine', false, 'loadMagazine', bulletsAddedToMag, resp.slot, nil)
+            if not result or not result.success then
+                local reason = result and result.reason or 'Server timeout or no response'
+                lib.notify({ id = 'pack_failed', type = 'error', description = 'Failed to pack magazine: ' .. reason })
             end
             isReloading = false
         end)
@@ -202,10 +203,11 @@ local function useMagazine(data, context)
         isReloading = true
         exports.ox_inventory:useItem(data, function(resp)
             if (not resp) then isReloading = false return end
-            local success = lib.callback.await('p_ox_inventory_addon:updateMagazine', 2000, 'load', resp.metadata.ammo, context.slot, weapon.metadata or nil)
+            local result = lib.callback.await('p_ox_inventory_addon:updateMagazine', false, 'load', resp.metadata.ammo, context.slot, weapon.metadata or nil)
 
-            if not success then
-                lib.notify({ id = 'no_magazine', type = 'error', description = 'Failed to reload - server timeout' })
+            if not result or not result.success then
+                local reason = result and result.reason or 'Server timeout or no response'
+                lib.notify({ id = 'reload_failed', type = 'error', description = 'Failed to reload: ' .. reason })
                 isReloading = false
                 return
             end
