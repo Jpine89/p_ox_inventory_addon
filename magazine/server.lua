@@ -23,7 +23,7 @@ local function updateMagazine(source, action, value, slot, specialAmmo)
         local magType = magazine and magazine.metadata and magazine.metadata.magType
         local metadata = magType and { magType = magType } or nil
 
-        if not exports.ox_inventory:RemoveItem(source, itemKey, 1, metadata, slot, false, false) then return end
+        if not exports.ox_inventory:RemoveItem(source, itemKey, 1, metadata, slot, false, false) then return false end
 
         if currentWepAmmo > 0 or weapon.metadata.hasMagazine then
             exports.ox_inventory:AddItem(source, itemKey, 1, newMagazineMetadata)
@@ -40,7 +40,7 @@ local function updateMagazine(source, action, value, slot, specialAmmo)
         local magCheck = magazine.metadata.ammo + value
         if magCheck > magazine.metadata.magSize then return false end
 
-        if not exports.ox_inventory:RemoveItem(source, magazine.metadata.ammoType, value) then return end
+        if not exports.ox_inventory:RemoveItem(source, magazine.metadata.ammoType, value) then return false end
         magazine.metadata.ammo = magCheck
         magazine.metadata.durability = math.max(1, math.floor((magCheck / magazine.metadata.magSize) * 100))
         exports.ox_inventory:SetMetadata(source, slot, magazine.metadata)

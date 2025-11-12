@@ -160,7 +160,7 @@ local function packMagazine(data)
                     isReloading = false
                 end
             end
-            local success = lib.callback.await('p_ox_inventory_addon:updateMagazine', 2000, 'loadMagazine', bulletsAddedToMag, resp.slot, nil)
+            local success = lib.callback.await('p_ox_inventory_addon:updateMagazine', false, 'loadMagazine', bulletsAddedToMag, resp.slot, nil)
             if not success then
                 lib.notify({ id = 'pack_failed', type = 'error', description = 'Failed to pack magazine - server timeout' })
             end
