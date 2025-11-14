@@ -129,7 +129,7 @@ local function packMagazine(data)
                 local animName = "reload_low_left_long"
                 if not isReloading then break end
 
-                if resp.metadata.ammo >= resp.metadata.magSize then
+                if resp.metadata.ammo + bulletsAddedToMag >= resp.metadata.magSize then
                     --print('Magazine is full or no more ammo to load.')
                     isReloading = false
                     break
