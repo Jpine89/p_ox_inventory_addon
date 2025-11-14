@@ -222,8 +222,8 @@ local function useMagazine(data, context)
 
             weapon.metadata.ammo = resp.metadata.ammo
             weapon.metadata.hasMagazine = true
-            isReloading = false
         end)
+        isReloading = false
     elseif data.magazine then
         local magId = context.metadata and context.metadata.id
         local currentId = currentMag.metadata and currentMag.metadata.id
